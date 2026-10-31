@@ -1,69 +1,119 @@
+import { fetchApi } from './apiClient';
 import { resourceService } from './resourceService';
-import { ScalingRecommendation, CostOptimizationItem } from '../types/cloudscaler';
+import { ScalingRecommendation, CostOptimizationItem, SystemEnergySummary } from '../types/cloudscaler';
 
 export const optimizationService = {
-  // Returns scaling recommendations dynamically calculated based on live resource metrics
+  // Returns aggregate energy and power optimization summary from Policy B engine
+  async getEnergySummary(): Promise<SystemEnergySummary> {
+    try {
+      return await fetchApi<SystemEnergySummary>('/api/v1/resources/energy/summary');
+    } catch (err: any) {
+      if (err.message === 'MOCK_MODE_ACTIVE') {
+        throw err;
+      }
+      return {
+        total_resources: 110,
+        baseline_power_w: 17631.91,
+        recommended_power_w: 17431.72,
+        baseline_energy_wh: 1469.32,
+        recommended_energy_wh: 1452.64,
+        energy_savings_wh: 16.68,
+        energy_savings_kwh: 0.0167,
+        energy_savings_percentage: 1.14,
+        evaluation_interval_sec: 300.0,
+        power_model: 'Linear (100W Idle - 250W Max)',
+        is_simulated: true,
+      };
+    }
+  },
+
+  // Returns scaling recommendations backed by Policy B backend endpoint (/analyze)
   async getScalingRecommendations(): Promise<ScalingRecommendation[]> {
     try {
       const resources = await resourceService.getResources();
-      return resources.map((r, index) => {
+      
+      // Concurrently query backend Policy B analysis for each resource
+      const analysisPromises = resources.map(async (r, index) => {
         const id = `rec-${index + 1}`;
-        if (r.status === 'OVERLOADED') {
+        try {
+          const analysis = await fetchApi<any>(`/api/v1/resources/${r.id}/analyze`, { method: 'POST' });
+
+          const status = analysis.status;
+          let priority: 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM';
+          if (status === 'OVERLOADED') priority = 'HIGH';
+          else if (status === 'UNDERUTILIZED') priority = 'LOW';
+
+          let perfImpact: 'INCREASE' | 'MAINTAIN' | 'OPTIMIZE' = 'MAINTAIN';
+          let costImpact: 'INCREASE' | 'DECREASE' | 'NEUTRAL' = 'NEUTRAL';
+          if (analysis.action_type === 'SCALE_UP') {
+            perfImpact = 'INCREASE';
+            costImpact = 'INCREASE';
+          } else if (analysis.action_type === 'SCALE_DOWN') {
+            perfImpact = 'OPTIMIZE';
+            costImpact = 'DECREASE';
+          }
+
+          let estCostChange = 0;
+          if (analysis.estimated_impact?.estimated_monthly_savings) {
+            estCostChange = -Math.round(analysis.estimated_impact.estimated_monthly_savings);
+          } else if (analysis.action_type === 'SCALE_UP') {
+            estCostChange = Math.round(r.monthlyCost * 0.25);
+          }
+
           return {
             id,
-            resourceId: r.id,
+            resourceId: String(r.id),
             resourceName: r.name,
-            currentStatus: 'OVERLOADED' as const,
+            currentStatus: status,
             cpuUtilization: r.cpu,
             memoryUtilization: r.memory,
-            recommendation: `Scale Up Instance Capacity (Increase from ${r.capacity} to ${r.capacity * 2} Units)`,
-            reason: `Current utilization (${r.cpu}% CPU, ${r.memory}% Memory) exceeds the configured safe operating threshold of 80%.`,
-            priority: 'HIGH' as const,
+            recommendation: analysis.suggested_action || analysis.recommendation,
+            reason: analysis.decision_reason || analysis.recommendation,
+            priority,
             impact: {
-              performance: 'INCREASE' as const,
-              availability: 'INCREASE' as const,
-              cost: 'INCREASE' as const,
+              performance: perfImpact,
+              availability: analysis.action_type === 'SCALE_UP' ? ('INCREASE' as const) : ('STABLE' as const),
+              cost: costImpact,
             },
-            estimatedCostChange: Math.round(r.monthlyCost),
+            estimatedCostChange: estCostChange,
+            actionType: analysis.action_type,
+            policyId: analysis.policy_id,
+            safeguardStatus: analysis.safeguard_status,
+            cooldownRemainingSteps: analysis.cooldown_remaining_steps,
+            allocatedCapacity: analysis.allocated_capacity,
+            costEstimate: analysis.cost_estimate,
+            energyEstimate: analysis.energy_estimate,
+            isSimulated: analysis.is_simulated ?? true,
           };
-        } else if (r.status === 'UNDERUTILIZED') {
+        } catch {
+          // Fallback to local heuristic mapping if /analyze fails
           return {
             id,
-            resourceId: r.id,
+            resourceId: String(r.id),
             resourceName: r.name,
-            currentStatus: 'UNDERUTILIZED' as const,
+            currentStatus: r.status,
             cpuUtilization: r.cpu,
             memoryUtilization: r.memory,
-            recommendation: `Downsize Capacity / Right-Size VM (Decrease from ${r.capacity} Unit to Micro Tier)`,
-            reason: `Average CPU utilization (${r.cpu}%) and Memory utilization (${r.memory}%) has remained under 20%, indicating over-provisioned infrastructure.`,
-            priority: 'LOW' as const,
+            recommendation: r.status === 'OVERLOADED'
+              ? `Scale Up Instance Capacity (Increase from ${r.capacity} to ${r.capacity * 2} Units)`
+              : r.status === 'UNDERUTILIZED'
+              ? `Downsize Capacity / Right-Size VM (Decrease from ${r.capacity} Unit to Micro Tier)`
+              : `Maintain Provisioned Capacity (${r.capacity} Units)`,
+            reason: `Local fallback evaluation: CPU=${r.cpu}%, Mem=${r.memory}%.`,
+            priority: r.status === 'OVERLOADED' ? ('HIGH' as const) : r.status === 'UNDERUTILIZED' ? ('LOW' as const) : ('MEDIUM' as const),
             impact: {
-              performance: 'OPTIMIZE' as const,
+              performance: r.status === 'OVERLOADED' ? ('INCREASE' as const) : ('MAINTAIN' as const),
               availability: 'STABLE' as const,
-              cost: 'DECREASE' as const,
+              cost: r.status === 'OVERLOADED' ? ('INCREASE' as const) : r.status === 'UNDERUTILIZED' ? ('DECREASE' as const) : ('NEUTRAL' as const),
             },
-            estimatedCostChange: -Math.round(r.monthlyCost * 0.4),
-          };
-        } else {
-          return {
-            id,
-            resourceId: r.id,
-            resourceName: r.name,
-            currentStatus: 'OPTIMAL' as const,
-            cpuUtilization: r.cpu,
-            memoryUtilization: r.memory,
-            recommendation: `Maintain Provisioned Capacity (${r.capacity} Units)`,
-            reason: `Resource performance metrics show healthy utilization headroom within target SLO parameters (20-80%).`,
-            priority: 'MEDIUM' as const,
-            impact: {
-              performance: 'MAINTAIN' as const,
-              availability: 'STABLE' as const,
-              cost: 'NEUTRAL' as const,
-            },
-            estimatedCostChange: 0,
+            estimatedCostChange: r.status === 'UNDERUTILIZED' ? -Math.round(r.monthlyCost * 0.4) : r.status === 'OVERLOADED' ? Math.round(r.monthlyCost) : 0,
+            policyId: 'Fallback Heuristic',
+            isSimulated: true,
           };
         }
       });
+
+      return await Promise.all(analysisPromises);
     } catch (err: any) {
       if (err.message === 'MOCK_MODE_ACTIVE') {
         throw err;

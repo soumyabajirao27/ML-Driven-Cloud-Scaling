@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { CloudResource } from '../../types/cloudscaler';
+import React, { useState, useEffect } from 'react';
+import { CloudResource, MetricPoint } from '../../types/cloudscaler';
 import { StatusBadge } from '../common/StatusBadge';
 import { formatINR } from '../../utils/formatters';
-import { X, Cpu, HardDrive, Network, Layers, DollarSign, Sparkles, TrendingUp, RefreshCw } from 'lucide-react';
+import { X, Cpu, HardDrive, Network, Layers, DollarSign, Sparkles, TrendingUp, RefreshCw, Database } from 'lucide-react';
 import { resourceService } from '../../services/resourceService';
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 
 interface ResourceDetailsDrawerProps {
   resource: CloudResource | null;
@@ -18,6 +19,18 @@ export const ResourceDetailsDrawer: React.FC<ResourceDetailsDrawerProps> = ({
 }) => {
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [metrics, setMetrics] = useState<MetricPoint[]>([]);
+  const [loadingMetrics, setLoadingMetrics] = useState(false);
+
+  useEffect(() => {
+    if (resource?.id) {
+      setLoadingMetrics(true);
+      resourceService.getResourceMetrics(resource.id)
+        .then((m) => setMetrics(m))
+        .catch(() => setMetrics([]))
+        .finally(() => setLoadingMetrics(false));
+    }
+  }, [resource?.id]);
 
   if (!resource) return null;
 
@@ -135,6 +148,64 @@ export const ResourceDetailsDrawer: React.FC<ResourceDetailsDrawerProps> = ({
                   <div className="text-base font-bold text-emerald-400 font-mono">{formatINR(resource.monthlyCost)}/mo</div>
                 </div>
               </div>
+            </div>
+
+            {/* Historical Telemetry Chart */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-mono font-semibold uppercase text-slate-400">
+                  <Database className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Historical Telemetry</span>
+                </div>
+                <span className={`text-[10px] font-mono px-2 py-0.5 rounded border ${
+                  resource.provider === 'google_borg'
+                    ? 'bg-amber-950/40 border-amber-800/60 text-amber-300'
+                    : 'bg-slate-900 border-slate-800 text-slate-400'
+                }`}>
+                  Source: {resource.provider === 'google_borg' ? 'Google Borg Dataset' : 'Mock Provider'}
+                </span>
+              </div>
+
+              {loadingMetrics ? (
+                <div className="h-32 flex items-center justify-center bg-slate-900/60 rounded-xl border border-slate-800 text-xs font-mono text-slate-500">
+                  Loading metrics...
+                </div>
+              ) : metrics.length === 0 ? (
+                <div className="h-24 flex items-center justify-center bg-slate-900/60 rounded-xl border border-slate-800 text-xs font-mono text-slate-500">
+                  No historical telemetry records stored.
+                </div>
+              ) : (
+                <div className="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-2">
+                  <div className="h-32 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={metrics} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="drawerCpuGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.4} />
+                            <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.0} />
+                          </linearGradient>
+                          <linearGradient id="drawerMemGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#818cf8" stopOpacity={0.4} />
+                            <stop offset="95%" stopColor="#818cf8" stopOpacity={0.0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                        <XAxis dataKey="timestamp" stroke="#64748b" tick={{ fontSize: 9 }} />
+                        <YAxis domain={[0, 'auto']} stroke="#64748b" tick={{ fontSize: 9 }} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', borderRadius: '8px', fontSize: '11px' }}
+                        />
+                        <Area type="monotone" dataKey="cpu" name="CPU %" stroke="#38bdf8" fill="url(#drawerCpuGrad)" strokeWidth={1.5} />
+                        <Area type="monotone" dataKey="memory" name="Mem %" stroke="#818cf8" fill="url(#drawerMemGrad)" strokeWidth={1.5} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 pt-1 border-t border-slate-800/80">
+                    <span>{metrics.length} telemetry points</span>
+                    <span>{metrics[0]?.timestamp} - {metrics[metrics.length - 1]?.timestamp}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* AI Analysis Summary */}

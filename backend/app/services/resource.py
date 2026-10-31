@@ -1,9 +1,13 @@
-"""Cloud Resource business service layer.
+"""ResourceService integration with Policy B Autoscaling Engine.
 
-Coordinates cloud resource CRUD operations and optimization analysis through
-the repository contract and security authorization rules.
+Wires PolicyBOptimizationEngine as the default engine for resource analysis,
+providing full backwards compatibility with Stage 1 and Stage 2 while exposing
+Policy B autoscaling recommendations, cooldown, hysteresis, and cost/power estimates.
 """
 
+from __future__ import annotations
+
+import logging
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import AuthorizationException, ResourceNotFoundException
@@ -15,8 +19,10 @@ from app.schemas.metric import MetricCreate, MetricResponse
 from app.schemas.optimization import OptimizationAnalysis
 from app.schemas.resource import ResourceCreate, ResourceUpdate
 from app.services.metric import MetricService
-from app.services.ml_optimization import MLOptimizationEngine
 from app.services.optimization import OptimizationService
+from app.services.policy_b_engine import PolicyBOptimizationEngine
+
+logger = logging.getLogger(__name__)
 
 
 class ResourceService:
@@ -26,8 +32,8 @@ class ResourceService:
         self.db = db
         self.repository = ResourceRepository(db)
         self.metric_repository = MetricRepository(db)
-        # Use the ML-backed engine with deterministic baseline fallback.
-        self.optimization_service = OptimizationService(engine=MLOptimizationEngine())
+        # Use Policy B proactive optimization engine backed by RandomForestRegressor & baseline fallback
+        self.optimization_service = OptimizationService(engine=PolicyBOptimizationEngine())
 
     def create_resource(self, user_id: int, resource_data: ResourceCreate) -> CloudResource:
         """Create a new cloud resource bound to the authenticated user ID."""
@@ -45,52 +51,41 @@ class ResourceService:
         )
         return self.repository.create(resource)
 
-    def get_resource_by_id(self, resource_id: int, current_user: User) -> CloudResource:
-        """Retrieve a cloud resource by ID after enforcing ownership authorization."""
-        resource = self.repository.get_by_id(resource_id)
-        if resource is None:
-            raise ResourceNotFoundException(message="Cloud resource not found")
+    def get_user_resources(self, current_user: User) -> list[CloudResource]:
+        """Fetch all cloud resources visible to the user."""
+        if current_user.is_superuser:
+            return self.repository.get_all()
+        return self.repository.get_user_resources(user_id=current_user.id)
 
-        if resource.user_id != current_user.id and not current_user.is_superuser:
-            raise AuthorizationException(message="Permission denied")
+    def get_resource_by_id(self, resource_id: int, current_user: User) -> CloudResource:
+        """Fetch a resource by ID verifying ownership."""
+        resource = self.repository.get_by_id(resource_id)
+        if not resource:
+            raise ResourceNotFoundException(f"CloudResource with ID {resource_id} not found")
+
+        if not current_user.is_superuser and resource.user_id != current_user.id:
+            raise AuthorizationException("Access denied to requested resource")
 
         return resource
 
-    def list_user_resources(self, current_user: User) -> list[CloudResource]:
-        """List cloud resources accessible by the authenticated user."""
-        if current_user.is_superuser:
-            return self.repository.get_all()
-        return self.repository.get_user_resources(current_user.id)
-
     def update_resource(
-        self, resource_id: int, resource_data: ResourceUpdate, current_user: User
+        self,
+        resource_id: int,
+        resource_data: ResourceUpdate,
+        current_user: User,
     ) -> CloudResource:
-        """Partially update an existing cloud resource after validating ownership."""
+        """Update an existing cloud resource."""
         resource = self.get_resource_by_id(resource_id=resource_id, current_user=current_user)
-
-        update_fields: dict[str, object] = {}
-        for field, value in resource_data.model_dump(exclude_unset=True).items():
-            if value is not None:
-                update_fields[field] = value
-
-        if not update_fields:
-            return resource
-
-        return self.repository.update(resource, **update_fields)
+        update_dict = resource_data.model_dump(exclude_unset=True)
+        return self.repository.update(resource, update_dict)
 
     def delete_resource(self, resource_id: int, current_user: User) -> bool:
-        """Delete an existing cloud resource after validating ownership."""
+        """Delete an existing cloud resource."""
         resource = self.get_resource_by_id(resource_id=resource_id, current_user=current_user)
         return self.repository.delete(resource)
 
     def analyze_resource(self, resource_id: int, current_user: User) -> OptimizationAnalysis:
-        """Run AI optimization analysis on a specific cloud resource.
-
-        Uses the ML demand prediction engine when historical metrics and a
-        trained model are available; otherwise falls back transparently to
-        the deterministic baseline rule engine. The response indicates the
-        source via ``analysis_source``.
-        """
+        """Run Phase 5 Policy B optimization analysis on a cloud resource."""
         resource = self.get_resource_by_id(resource_id=resource_id, current_user=current_user)
         metrics = self.metric_repository.get_metrics_for_resource(resource_id=resource_id)
         return self.optimization_service.analyze(resource, metrics)
@@ -98,10 +93,10 @@ class ResourceService:
     def create_metric(
         self,
         resource_id: int,
-        metric_data,
+        metric_data: MetricCreate,
         current_user: User,
-    ):
-        """Create a historical metric observation after validating ownership."""
+    ) -> MetricResponse:
+        """Create a historical metric observation."""
         resource = self.get_resource_by_id(resource_id=resource_id, current_user=current_user)
         metric_service = MetricService(db=self.db)
         return metric_service.create_metric(resource=resource, metric_data=metric_data)
@@ -111,8 +106,9 @@ class ResourceService:
         resource_id: int,
         current_user: User,
         limit: int | None = None,
+        source: str | None = None,
     ):
-        """List chronological metric samples after validating ownership."""
+        """List chronological metric samples."""
         self.get_resource_by_id(resource_id=resource_id, current_user=current_user)
         metric_service = MetricService(db=self.db)
-        return metric_service.list_metrics(resource_id=resource_id, limit=limit)
+        return metric_service.list_metrics(resource_id=resource_id, limit=limit, source=source)

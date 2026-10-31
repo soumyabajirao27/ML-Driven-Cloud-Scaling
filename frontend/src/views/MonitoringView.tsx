@@ -1,16 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { DEMO_SYSTEM_EVENTS } from '../services/mockData';
 import { StatusBadge } from '../components/common/StatusBadge';
-import { Activity, AlertTriangle, ShieldCheck, Clock, Server, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Activity, AlertTriangle, ShieldCheck, Clock, Server, CheckCircle2, RefreshCw, Database } from 'lucide-react';
+import { resourceService } from '../services/resourceService';
+import { CloudResource } from '../types/cloudscaler';
 
 export const MonitoringView: React.FC = () => {
+  const [resources, setResources] = useState<CloudResource[]>([]);
+
+  useEffect(() => {
+    resourceService.getResources()
+      .then((data) => setResources(data))
+      .catch(() => {});
+  }, []);
+
+  const borgCount = resources.filter((r) => r.provider === 'google_borg').length;
+  const mockCount = resources.filter((r) => r.provider !== 'google_borg').length;
+  const totalCount = resources.length || 3;
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-100 tracking-tight font-mono">System Observability & Monitoring</h1>
         <p className="text-sm text-slate-400 mt-1">
-          Real-time telemetry feeds, active alert logs, and system events.
+          Historical telemetry feeds, active alert logs, and system events.
         </p>
       </div>
 
@@ -22,7 +36,7 @@ export const MonitoringView: React.FC = () => {
             <ShieldCheck className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="text-2xl font-bold font-mono text-emerald-400">OPERATIONAL</div>
-          <div className="text-[11px] text-slate-500 font-mono">99.98% Telemetry Uptime</div>
+          <div className="text-[11px] text-slate-500 font-mono">Telemetry Pipeline Online</div>
         </div>
 
         <div className="p-5 rounded-xl bg-[#0f172a] border border-slate-800 space-y-2">
@@ -30,8 +44,10 @@ export const MonitoringView: React.FC = () => {
             <span>ACTIVE ALERTS</span>
             <AlertTriangle className="w-4 h-4 text-red-400" />
           </div>
-          <div className="text-2xl font-bold font-mono text-red-400">1 Critical</div>
-          <div className="text-[11px] text-slate-400 font-mono">mock-db-server-1 Peak Load</div>
+          <div className="text-2xl font-bold font-mono text-red-400">
+            {resources.filter(r => r.status === 'OVERLOADED').length} Overloaded
+          </div>
+          <div className="text-[11px] text-slate-400 font-mono">Threshold SLA Warning</div>
         </div>
 
         <div className="p-5 rounded-xl bg-[#0f172a] border border-slate-800 space-y-2">
@@ -39,17 +55,23 @@ export const MonitoringView: React.FC = () => {
             <span>CONNECTED INSTANCES</span>
             <Server className="w-4 h-4 text-sky-400" />
           </div>
-          <div className="text-2xl font-bold font-mono text-slate-100">3 Resources</div>
-          <div className="text-[11px] text-slate-500 font-mono">Mock Cloud Infrastructure</div>
+          <div className="text-2xl font-bold font-mono text-slate-100">{totalCount} Resources</div>
+          <div className="text-[11px] text-slate-400 font-mono">
+            {borgCount > 0 ? `${borgCount} Borg Trace, ${mockCount} Mock` : 'Mock Cloud Infrastructure'}
+          </div>
         </div>
 
         <div className="p-5 rounded-xl bg-[#0f172a] border border-slate-800 space-y-2">
           <div className="flex justify-between items-center text-xs font-mono text-slate-400">
-            <span>LAST SYNC</span>
-            <Clock className="w-4 h-4 text-indigo-400" />
+            <span>TELEMETRY SOURCE</span>
+            <Database className="w-4 h-4 text-amber-400" />
           </div>
-          <div className="text-xl font-bold font-mono text-slate-200">Just Now</div>
-          <div className="text-[11px] text-emerald-400 font-mono">● Auto-refreshing</div>
+          <div className="text-lg font-bold font-mono text-slate-200">
+            {borgCount > 0 ? 'Google Borg Trace' : 'Mock Deterministic'}
+          </div>
+          <div className="text-[11px] text-amber-400 font-mono">
+            {borgCount > 0 ? 'Historical Batch Ingested' : 'Local Sandbox Mode'}
+          </div>
         </div>
       </div>
 

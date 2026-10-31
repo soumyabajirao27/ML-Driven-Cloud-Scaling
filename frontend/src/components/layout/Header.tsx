@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Menu, Clock, Server, Bell, User, LogOut, Database, Wifi } from 'lucide-react';
 import { isMockDataMode, setMockDataMode } from '../../services/apiClient';
+import { resourceService } from '../../services/resourceService';
+import { CloudResource } from '../../types/cloudscaler';
 
 interface HeaderProps {
   setIsOpenMobile: (open: boolean) => void;
@@ -13,6 +15,18 @@ export const Header: React.FC<HeaderProps> = ({ setIsOpenMobile, onLogout, userE
   const [isDemo, setIsDemo] = useState<boolean>(isMockDataMode());
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [showUserMenu, setShowUserMenu] = useState<boolean>(false);
+  const [criticalResources, setCriticalResources] = useState<CloudResource[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    resourceService.getResources().then((resources) => {
+      if (isMounted) {
+        const critical = resources.filter(r => r.status === 'OVERLOADED' || r.status === 'UNDERUTILIZED');
+        setCriticalResources(critical.slice(0, 3));
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
 
   useEffect(() => {
     const updateClock = () => {
@@ -90,17 +104,34 @@ export const Header: React.FC<HeaderProps> = ({ setIsOpenMobile, onLogout, userE
             <div className="absolute right-0 mt-2 w-80 bg-[#0f172a] border border-slate-800 rounded-xl shadow-2xl z-50 p-4 space-y-3">
               <div className="flex items-center justify-between border-b border-slate-800 pb-2">
                 <span className="text-xs font-semibold text-slate-200 uppercase font-mono">System Alerts</span>
-                <span className="text-[10px] bg-red-500/20 text-red-300 px-1.5 py-0.5 rounded font-mono">1 Critical</span>
+                <span className="text-[10px] bg-sky-500/20 text-sky-300 px-1.5 py-0.5 rounded font-mono">
+                  {criticalResources.length > 0 ? `${criticalResources.length} Attention` : 'All Optimal'}
+                </span>
               </div>
               <div className="space-y-2 text-xs">
-                <div className="p-2.5 rounded-lg bg-red-950/30 border border-red-900/40 text-red-200">
-                  <div className="font-semibold text-red-400">mock-db-server-1 Overloaded</div>
-                  <div className="text-[11px] text-slate-400">CPU 92%, Memory 90%. Action recommended.</div>
-                </div>
-                <div className="p-2.5 rounded-lg bg-amber-950/20 border border-amber-900/40 text-amber-200">
-                  <div className="font-semibold text-amber-400">mock-app-vm-1 Underutilized</div>
-                  <div className="text-[11px] text-slate-400">CPU 10%, Memory 10%. Right-sizing opportunity.</div>
-                </div>
+                {criticalResources.length > 0 ? (
+                  criticalResources.map((res) => (
+                    <div
+                      key={res.id}
+                      className={`p-2.5 rounded-lg border ${
+                        res.status === 'OVERLOADED'
+                          ? 'bg-red-950/30 border-red-900/40 text-red-200'
+                          : 'bg-amber-950/20 border-amber-900/40 text-amber-200'
+                      }`}
+                    >
+                      <div className={`font-semibold ${res.status === 'OVERLOADED' ? 'text-red-400' : 'text-amber-400'}`}>
+                        {res.name || res.id} {res.status === 'OVERLOADED' ? 'Overloaded' : 'Underutilized'}
+                      </div>
+                      <div className="text-[11px] text-slate-400">
+                        CPU {res.cpu}%, Memory {res.memory}%. Provider: {res.provider}.
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-2.5 rounded-lg bg-emerald-950/20 border border-emerald-900/40 text-emerald-300 text-[11px]">
+                    All monitored workloads operating within safe operational margins.
+                  </div>
+                )}
               </div>
             </div>
           )}

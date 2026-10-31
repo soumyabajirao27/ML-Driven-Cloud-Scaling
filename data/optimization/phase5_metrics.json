@@ -1,0 +1,195 @@
+{
+  "phase": "Phase 5 \u2014 Optimization, Cost, Energy & Response Time",
+  "generated_at": "2026-10-26T10:43:58.868443",
+  "selected_model": "LSTM (Primary) with Random Forest Fallback",
+  "n_steps": 1560,
+  "policy_comparison": {
+    "total_evaluated_steps": 1560,
+    "policy_a_baseline": {
+      "scale_up_actions": 0,
+      "maintain_actions": 0,
+      "scale_down_actions": 1560,
+      "overloaded_events": 0,
+      "underutilized_events": 1560,
+      "total_simulated_cost": 8.540669441223145,
+      "total_simulated_energy_wh": 39159.705387751266,
+      "mean_simulated_response_time_sec": 0.0
+    },
+    "policy_b_ml_proactive": {
+      "scale_up_actions": 0,
+      "maintain_actions": 1040,
+      "scale_down_actions": 520,
+      "overloaded_events": 0,
+      "underutilized_events": 1560,
+      "total_simulated_cost": 11.058298110961914,
+      "total_simulated_energy_wh": 39364.519062042236,
+      "mean_simulated_response_time_sec": 0.0
+    },
+    "simulated_percentage_changes": {
+      "cost_percentage_change": 29.47811863068909,
+      "energy_percentage_change": 0.5230214892143534,
+      "response_time_percentage_change": 0.0
+    }
+  },
+  "simulation_parameters": {
+    "cost": {
+      "cpu_price_per_unit": 1.0,
+      "mem_price_per_unit": 0.5,
+      "unit_name": "cost_units"
+    },
+    "power": {
+      "idle_power_w": 100.0,
+      "max_power_w": 250.0,
+      "unit_name": "Watt-hours (Wh)"
+    },
+    "latency": {
+      "scale_up_provision_sec": 90.0,
+      "scale_down_latency_sec": 30.0,
+      "maintain_latency_sec": 0.0
+    },
+    "policy_thresholds": {
+      "underutilized_cpu_pct": 20.0,
+      "overloaded_cpu_pct": 85.0,
+      "hysteresis_buffer_pct": 2.0
+    },
+    "safeguards": {
+      "min_cpu_allocation": 0.001,
+      "max_cpu_allocation": 0.2,
+      "scaling_cooldown_steps": 2
+    }
+  },
+  "edge_case_tests": [
+    {
+      "scenario_name": "1. Normal Workload Steady State (Optimal)",
+      "input_conditions": "Synthetic steady CPU 50.0% (predicted: 50.0%, raw LSTM sample: 0.006912)",
+      "model_used": "Primary (LSTM Policy Step)",
+      "predicted_state": "OPTIMAL",
+      "classified_state": "OPTIMAL",
+      "expected_behavior": "MAINTAIN current allocation without false scaling",
+      "actual_action": "MAINTAIN",
+      "satisfied": true,
+      "explanation": "Predicted CPU 50.0% is within the [18%, 87%] hysteresis deadband, maintaining allocation."
+    },
+    {
+      "scenario_name": "2. Sudden CPU Spike (Predicted > 87%)",
+      "input_conditions": "Synthetic current CPU 0.005, predicted CPU 0.90 (90%)",
+      "model_used": "Primary (LSTM Policy Step)",
+      "predicted_state": "OVERLOADED",
+      "classified_state": "UNDERUTILIZED",
+      "expected_behavior": "SCALE_UP proactive capacity expansion before peak",
+      "actual_action": "SCALE_UP",
+      "satisfied": true,
+      "explanation": "Predicted CPU 90% exceeded high threshold 87%, triggering proactive scale-up."
+    },
+    {
+      "scenario_name": "3. Sustained High Utilization",
+      "input_conditions": "Synthetic current CPU 0.88 (88%), predicted CPU 0.88 (88%)",
+      "model_used": "Primary (LSTM Policy Step)",
+      "predicted_state": "OVERLOADED",
+      "classified_state": "OVERLOADED",
+      "expected_behavior": "SCALE_UP or maintain maximum required capacity",
+      "actual_action": "SCALE_UP",
+      "satisfied": true,
+      "explanation": "High utilization capped at safeguard ceiling 0.2."
+    },
+    {
+      "scenario_name": "4. Sustained Low Utilization (< 18%)",
+      "input_conditions": "Synthetic current CPU 0.005, low history 0.0001, predicted low",
+      "model_used": "Primary (LSTM)",
+      "predicted_state": "UNDERUTILIZED",
+      "classified_state": "UNDERUTILIZED",
+      "expected_behavior": "SCALE_DOWN to eliminate idle waste",
+      "actual_action": "SCALE_DOWN",
+      "satisfied": true,
+      "explanation": "Predicted CPU < 18% low threshold triggered controlled right-sizing scale-down."
+    },
+    {
+      "scenario_name": "5. Cold-Start Workload (< 5 sequence steps)",
+      "input_conditions": "Single historical observation available; LSTM sequence buffer incomplete",
+      "model_used": "Fallback (Random Forest)",
+      "predicted_state": "UNDERUTILIZED",
+      "classified_state": "UNDERUTILIZED",
+      "expected_behavior": "Fallback to Random Forest model for immediate tabular prediction",
+      "actual_action": "SCALE_DOWN",
+      "satisfied": true,
+      "explanation": "Successfully invoked Random Forest fallback; generated valid forecast 0.008361."
+    },
+    {
+      "scenario_name": "6. Missing Historical Sequence Steps",
+      "input_conditions": "Temporal gap > 30 min breaks sequence continuity",
+      "model_used": "Fallback (Random Forest)",
+      "predicted_state": "UNDERUTILIZED",
+      "classified_state": "UNDERUTILIZED",
+      "expected_behavior": "Graceful fallback to RF single-step regressor without pipeline crash",
+      "actual_action": "SCALE_DOWN",
+      "satisfied": true,
+      "explanation": "Sequence gap safely resolved by falling back to tabular Random Forest forecaster."
+    },
+    {
+      "scenario_name": "7. Prediction Completely Unavailable",
+      "input_conditions": "Both LSTM and RF pipelines unavailable/corrupted",
+      "model_used": "Rule-Based Engine (Baseline Policy A)",
+      "predicted_state": "UNAVAILABLE",
+      "classified_state": "OVERLOADED",
+      "expected_behavior": "Fallback to deterministic Rule-Based Engine using observed telemetry",
+      "actual_action": "SCALE_UP",
+      "satisfied": true,
+      "explanation": "Rule-Based Engine safely classified observed 90% load as OVERLOADED and triggered SCALE_UP."
+    },
+    {
+      "scenario_name": "8. Minimum Allocation Floor Bound Reached",
+      "input_conditions": "Allocation currently at 0.001 CPU floor, predicted low CPU",
+      "model_used": "Policy Safeguard Engine",
+      "predicted_state": "UNDERUTILIZED",
+      "classified_state": "UNDERUTILIZED",
+      "expected_behavior": "Suppress further SCALE_DOWN; MAINTAIN at floor bound (0.001)",
+      "actual_action": "MAINTAIN",
+      "satisfied": true,
+      "explanation": "Safeguard prevented scale-down below configured floor bound 0.001."
+    },
+    {
+      "scenario_name": "9. Maximum Allocation Ceiling Bound Reached",
+      "input_conditions": "Allocation currently at 0.200 CPU ceiling, predicted overload",
+      "model_used": "Policy Safeguard Engine",
+      "predicted_state": "OVERLOADED",
+      "classified_state": "OPTIMAL",
+      "expected_behavior": "Clamp capacity allocation to 0.200 CPU max bound",
+      "actual_action": "SCALE_UP",
+      "satisfied": true,
+      "explanation": "Allocation successfully clamped at maximum safeguard ceiling 0.2."
+    },
+    {
+      "scenario_name": "10. LSTM Model Unavailable (Keras Runtime Failure)",
+      "input_conditions": "LSTM neural network raises exception or missing runtime weights",
+      "model_used": "Fallback (Random Forest)",
+      "predicted_state": "UNDERUTILIZED",
+      "classified_state": "UNDERUTILIZED",
+      "expected_behavior": "Automatic secondary fallback to Random Forest regressor",
+      "actual_action": "MAINTAIN",
+      "satisfied": true,
+      "explanation": "Pipeline switched to secondary RF model, producing valid forecast 0.014676."
+    },
+    {
+      "scenario_name": "11. Random Forest Fallback Execution & Scaling",
+      "input_conditions": "Random Forest model active; generates prediction for policy consumption",
+      "model_used": "Fallback (Random Forest)",
+      "predicted_state": "UNDERUTILIZED",
+      "classified_state": "UNDERUTILIZED",
+      "expected_behavior": "Consume RF prediction in Policy B scaling logic seamlessly",
+      "actual_action": "SCALE_DOWN",
+      "satisfied": true,
+      "explanation": "RF prediction fed directly into Policy B threshold logic without conversion error."
+    },
+    {
+      "scenario_name": "12. Tertiary Rule-Based Fallback Policy Execution",
+      "input_conditions": "Neither ML model available; pure reactive threshold analysis",
+      "model_used": "Rule-Based Engine (Policy A Baseline)",
+      "predicted_state": "N/A",
+      "classified_state": "UNDERUTILIZED",
+      "expected_behavior": "Classify state based on observed metrics and emit valid action",
+      "actual_action": "SCALE_DOWN",
+      "satisfied": true,
+      "explanation": "Rule-Based Engine correctly classified 15% load as UNDERUTILIZED and applied scale-down."
+    }
+  ]
+}

@@ -1,43 +1,95 @@
-# Environment / secrets
+# ==============================
+# Environment Variables & Secrets
+# ==============================
 .env
 .env.*
 !.env.example
+!.env.*.example
+*.pem
+*.key
 
+# ==============================
 # Python
-venv/
-.venv/
+# ==============================
 __pycache__/
 *.py[cod]
-*.pyo
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-# Node
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# ==============================
+# Node.js / React / Vite
+# ==============================
 node_modules/
 frontend/node_modules/
-frontend_new/node_modules/
-
-# Build outputs
-dist/
-build/
 frontend/dist/
-frontend_new/dist/
+dist/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
 
-# IDE
+# ==============================
+# IDEs and Editors
+# ==============================
 .vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
 !.vscode/launch.json
 !.vscode/tasks.json
+.idea/
+*.swp
+*.swo
 
-# Logs
-*.log
-
-# Large datasets
-*.csv
-
-# Local model/cache files
-*.pkl
-*.joblib
-*.h5
-*.keras
-
-# OS
+# ==============================
+# Operating System
+# ==============================
 .DS_Store
 Thumbs.db
+Desktop.ini
+
+# ==============================
+# Logs and Temporary Files
+# ==============================
+*.log
+logs/
+tmp/
+temp/
+
+# ==============================
+# Database / Local Runtime Files
+# ==============================
+*.sqlite
+*.sqlite3
+*.db
+
+# ==============================
+# Machine Learning / Experiment Outputs
+# ==============================
+mlruns/
+wandb/
+.tensorboard/
+.ipynb_checkpoints/
+
+# ==============================
+# Local Data and Generated Artifacts
+# Review these before enabling:
+# ==============================
+# data/raw/
+# data/processed/
+# data/outputs/
+
+borg_traces_data.csv

@@ -1,0 +1,4 @@
+Model,Dataset Type,Test MAE,Test RMSE,Test R2,Train Time (s),Inference Time (s),Latency (ms/sample)
+Random Forest,Tabular Pairs (65k),0.000615,0.001899,0.9071,2.46,0.192,0.0293
+XGBoost,Tabular Pairs (65k),0.000877,0.00229,0.865,3.12,0.075,0.0115
+LSTM,3D Sequences (15.5k),0.000417,0.000547,0.9838,35.0,0.37,0.2369

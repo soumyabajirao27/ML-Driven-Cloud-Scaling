@@ -35,6 +35,27 @@ class Settings(BaseSettings):
     # Cloud Provider Integration
     CLOUD_PROVIDER: str = "mock"
 
+    # ML Inference Settings
+    ML_MODEL_TYPE: str = "random_forest"
+    ML_MODEL_PATH: str | None = None
+    ML_CONFIDENCE_THRESHOLD: float = 0.80
+
+    # Phase 5 Policy B & Autoscaling Settings
+    POLICY_B_COOLDOWN_STEPS: int = 2
+    POLICY_B_COOLDOWN_SECONDS: int = 300
+    POLICY_B_HYSTERESIS_BUFFER_PCT: float = 2.0
+    POLICY_B_UNDERUTILIZED_PCT: float = 20.0
+    POLICY_B_OVERLOADED_PCT: float = 85.0
+    POLICY_B_MIN_CPU_ALLOCATION: float = 0.001
+    POLICY_B_MAX_CPU_ALLOCATION: float = 0.200
+
+    # Power and Cost Simulation Parameters
+    SIM_CPU_PRICE_PER_UNIT: float = 1.0
+    SIM_MEM_PRICE_PER_UNIT: float = 0.5
+    SIM_IDLE_POWER_W: float = 100.0
+    SIM_MAX_POWER_W: float = 250.0
+    SIM_SCALE_UP_LATENCY_SEC: float = 90.0
+    SIM_SCALE_DOWN_LATENCY_SEC: float = 30.0
+
 
 settings = Settings()
-

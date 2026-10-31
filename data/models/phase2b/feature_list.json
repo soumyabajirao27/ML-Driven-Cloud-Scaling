@@ -1,0 +1,23 @@
+{
+  "features": [
+    "priority",
+    "scheduling_class",
+    "collection_type",
+    "cluster",
+    "vertical_scaling",
+    "scheduler",
+    "cpu_request",
+    "memory_request",
+    "assigned_memory",
+    "cpi",
+    "mai",
+    "sample_rate",
+    "cpu_avg_usage_t",
+    "memory_avg_usage_t",
+    "cpu_utilization_pct_t",
+    "memory_utilization_pct_t",
+    "cpu_burst_factor_t",
+    "delta_t_sec"
+  ],
+  "primary_target": "target_future_cpu_avg"
+}

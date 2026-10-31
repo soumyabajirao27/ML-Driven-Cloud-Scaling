@@ -6,7 +6,7 @@ Inherits shared ``BaseModel`` columns (``id``, ``created_at``, ``updated_at``).
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, func
+from sqlalchemy import DateTime, Float, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import BaseModel
@@ -22,6 +22,7 @@ class ResourceMetric(BaseModel):
         memory_utilization: Percentage Memory usage (0.0 to 100.0).
         storage_utilization: Percentage Storage usage (0.0 to 100.0).
         network_utilization: Percentage Network usage (0.0 to 100.0).
+        source: Workload telemetry source ('mock', 'google_borg', etc.).
     """
 
     __tablename__ = "resource_metrics"
@@ -54,6 +55,12 @@ class ResourceMetric(BaseModel):
         Float,
         default=0.0,
         nullable=False,
+    )
+    source: Mapped[str] = mapped_column(
+        String(50),
+        default="mock",
+        nullable=False,
+        index=True,
     )
 
     __table_args__ = (

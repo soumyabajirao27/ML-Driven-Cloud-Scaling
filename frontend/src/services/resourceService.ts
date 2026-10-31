@@ -1,6 +1,6 @@
 import { fetchApi } from './apiClient';
 import { DEMO_RESOURCES, DEMO_PREDICTIONS } from './mockData';
-import { CloudResource, MetricPoint, ResourceStatus } from '../types/cloudscaler';
+import { BorgDatasetSummary, BorgReplayResult, CloudResource, MetricPoint, ResourceStatus } from '../types/cloudscaler';
 
 const mapResource = (r: any): CloudResource => {
   // Compute status dynamically based on utilization thresholds (matching backend BaselineRuleEngine)
@@ -32,13 +32,29 @@ const mapResource = (r: any): CloudResource => {
 
 const mapMetricPoint = (m: any): MetricPoint => {
   const time = new Date(m.timestamp);
-  const timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  const timeStr = !isNaN(time.getTime())
+    ? time.toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZoneName: 'short'
+      })
+    : String(m.timestamp);
+
   return {
+    id: m.id,
+    resource_id: m.resource_id,
+    resource_name: m.resource_name,
     timestamp: timeStr,
-    cpu: Math.round(m.cpu_utilization),
-    memory: Math.round(m.memory_utilization),
+    rawTimestamp: m.timestamp,
+    cpu: Number(Number(m.cpu_utilization).toFixed(2)),
+    memory: Number(Number(m.memory_utilization).toFixed(2)),
     storage: Math.round(m.storage_utilization || 0),
-    network: Math.round(m.network_utilization || 0)
+    network: Math.round(m.network_utilization || 0),
+    source: m.source || 'mock'
   };
 };
 
@@ -71,9 +87,12 @@ export const resourceService = {
   },
 
   // GET /api/v1/resources/{resource_id}/metrics
-  async getResourceMetrics(resourceId: string): Promise<MetricPoint[]> {
+  async getResourceMetrics(resourceId: string, source?: string): Promise<MetricPoint[]> {
     try {
-      const data = await fetchApi<any[]>(`/api/v1/resources/${resourceId}/metrics`);
+      const url = source
+        ? `/api/v1/resources/${resourceId}/metrics?source=${encodeURIComponent(source)}`
+        : `/api/v1/resources/${resourceId}/metrics`;
+      const data = await fetchApi<any[]>(url);
       return data.map(mapMetricPoint);
     } catch (err: any) {
       if (err.message === 'MOCK_MODE_ACTIVE') {
@@ -81,6 +100,21 @@ export const resourceService = {
       }
       const pred = DEMO_PREDICTIONS[resourceId];
       return pred ? pred.metrics : [];
+    }
+  },
+
+  // POST /api/v1/resources/replay-borg
+  async replayBorg(maxIntervals: number = 100): Promise<BorgReplayResult> {
+    try {
+      const res = await fetchApi<any>(`/api/v1/resources/replay-borg?max_intervals=${maxIntervals}`, {
+        method: 'POST'
+      });
+      return (res.data || res) as BorgReplayResult;
+    } catch (err: any) {
+      if (err.message === 'MOCK_MODE_ACTIVE') {
+        throw err;
+      }
+      throw err;
     }
   },
 
@@ -120,6 +154,40 @@ export const resourceService = {
         throw err;
       }
       return { status: 'success', count: DEMO_RESOURCES.length };
+    }
+  },
+
+  // GET /api/v1/resources/borg/metrics -> Paginated raw Borg telemetry records
+  async getBorgTelemetry(limit: number = 50, offset: number = 0): Promise<MetricPoint[]> {
+    try {
+      const data = await fetchApi<any[]>(`/api/v1/resources/borg/metrics?limit=${limit}&offset=${offset}`);
+      return data.map(mapMetricPoint);
+    } catch (err: any) {
+      if (err.message === 'MOCK_MODE_ACTIVE') {
+        throw err;
+      }
+      return [];
+    }
+  },
+
+  // GET /api/v1/resources/borg/summary -> Live Google Borg dataset & telemetry counts
+  async getBorgSummary(): Promise<BorgDatasetSummary> {
+    try {
+      return await fetchApi<BorgDatasetSummary>('/api/v1/resources/borg/summary');
+    } catch {
+      return {
+        dataset_name: 'Google Borg Workload Trace (Cluster Workloads)',
+        original_file: 'data/temporal/borg_temporal_pairs.csv',
+        original_row_count: 65398,
+        original_column_count: 26,
+        imported_metric_count: 200,
+        imported_resource_count: 98,
+        mock_metric_count: 36,
+        mock_resource_count: 12,
+        earliest_timestamp: '2026-01-01T00:00:00Z',
+        latest_timestamp: '2026-01-01T01:18:07Z',
+        telemetry_source: 'google_borg'
+      };
     }
   }
 };

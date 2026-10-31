@@ -1,0 +1,27 @@
+{
+  "original_features": [
+    "priority",
+    "scheduling_class",
+    "cpu_request",
+    "memory_request",
+    "assigned_memory",
+    "cpu_avg_usage_t",
+    "cpu_utilization_pct_t",
+    "delta_t_sec"
+  ],
+  "delta_t_sec_removed": true,
+  "delta_t_sec_reason": "delta_t_sec at step 4 encodes the time gap between the current observation and the future target \u2014 information not available at prediction time. Removed to prevent temporal leakage.",
+  "features_used": [
+    "priority",
+    "scheduling_class",
+    "cpu_request",
+    "memory_request",
+    "assigned_memory",
+    "cpu_avg_usage_t",
+    "cpu_utilization_pct_t"
+  ],
+  "n_features": 7,
+  "target": "target_future_cpu_avg",
+  "feature_scaler": "StandardScaler (fitted on X_train only)",
+  "target_scaler": "MinMaxScaler   (fitted on Y_train only)"
+}

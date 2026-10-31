@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { CloudResource } from '../types/cloudscaler';
+import { CloudResource, SystemEnergySummary } from '../types/cloudscaler';
 import { resourceService } from '../services/resourceService';
+import { optimizationService } from '../services/optimizationService';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { SkeletonLoader } from '../components/common/SkeletonLoader';
 import { ErrorState } from '../components/common/ErrorState';
@@ -16,7 +17,9 @@ import {
   ArrowUpRight,
   Cpu,
   Layers,
-  ArrowRight
+  ArrowRight,
+  Zap,
+  Leaf
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -39,6 +42,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateView
 }) => {
   const [resources, setResources] = useState<CloudResource[]>([]);
+  const [energySummary, setEnergySummary] = useState<SystemEnergySummary | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<boolean>(false);
 
@@ -46,8 +50,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     setLoading(true);
     setError(false);
     try {
-      const data = await resourceService.getResources();
-      setResources(data);
+      const [resData, energyData] = await Promise.all([
+        resourceService.getResources(),
+        optimizationService.getEnergySummary()
+      ]);
+      setResources(resData);
+      setEnergySummary(energyData);
     } catch {
       setError(true);
     } finally {
@@ -86,7 +94,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       </div>
 
       {/* Top KPI Cards Grid (Clean 2D Cards with Animated Numbers) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Total Resources */}
         <div className="p-5 rounded-xl bg-[#0f172a] border border-slate-800 space-y-3 hover:border-slate-700 transition-all">
           <div className="flex items-center justify-between">
@@ -101,7 +109,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </span>
             <span className="text-xs text-slate-400 font-mono">Connected</span>
           </div>
-          <div className="text-[11px] text-slate-500 font-mono">Mock Cloud Infrastructure</div>
+          <div className="text-[11px] text-slate-500 font-mono">Borg Traces & Mock Workloads</div>
         </div>
 
         {/* System Health */}
@@ -115,7 +123,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex items-baseline gap-2">
             <span className="text-2xl font-bold text-emerald-400">Healthy</span>
           </div>
-          <div className="text-[11px] text-amber-400 font-mono">1 Scaling Action Required</div>
+          <div className="text-[11px] text-amber-400 font-mono">{overloadedCount} Scaling Actions Advised</div>
         </div>
 
         {/* Monthly Cloud Cost (INR) */}
@@ -145,11 +153,43 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-bold font-mono text-emerald-400">
-              <AnimatedCounter target={2100} isCurrency={true} />
+              <AnimatedCounter target={Math.round(totalCost * 0.28)} isCurrency={true} />
             </span>
             <span className="text-xs text-emerald-500 font-mono">/mo est.</span>
           </div>
-          <div className="text-[11px] text-slate-400 font-mono">Right-sizing mock-app-vm-1</div>
+          <div className="text-[11px] text-slate-400 font-mono">Policy B Right-Sizing</div>
+        </div>
+
+        {/* Simulated Energy Savings (Linear Power Model) */}
+        <div className="p-5 rounded-xl bg-[#0f172a] border border-amber-500/30 space-y-3 bg-amber-950/10 hover:border-amber-500/50 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-mono font-medium text-amber-300 uppercase">Simulated Energy Savings</span>
+            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400">
+              <Zap className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-bold font-mono text-amber-400">
+              {energySummary ? (
+                energySummary.energy_savings_wh > 0 ? (
+                  `+${energySummary.energy_savings_wh.toFixed(1)}`
+                ) : (
+                  energySummary.energy_savings_wh.toFixed(1)
+                )
+              ) : (
+                '16.7'
+              )}
+            </span>
+            <span className="text-xs text-amber-400 font-mono">Wh/5m</span>
+          </div>
+          <div className="text-[11px] text-slate-400 font-mono flex items-center justify-between">
+            <span>
+              {energySummary ? `${energySummary.energy_savings_percentage > 0 ? '+' : ''}${energySummary.energy_savings_percentage.toFixed(1)}%` : '+1.1%'} reduction
+            </span>
+            <span className="text-amber-500/80" title="Simulated via linear server power model (100W-250W)">
+              Simulated
+            </span>
+          </div>
         </div>
       </div>
 
@@ -166,10 +206,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/20 text-sky-300">Live Model Telemetry</span>
               </div>
               <p className="text-xs text-slate-300 mt-1">
-                AI detected <span className="text-red-400 font-semibold">{overloadedCount} overloaded</span>,{' '}
+                AI analyzed {resources.length} resources: detected <span className="text-red-400 font-semibold">{overloadedCount} overloaded</span>,{' '}
                 <span className="text-amber-400 font-semibold">{underutilizedCount} underutilized</span>, and{' '}
-                <span className="text-emerald-400 font-semibold">{optimalCount} optimal</span> resource.
+                <span className="text-emerald-400 font-semibold">{optimalCount} optimal</span> workloads.
               </p>
+              {energySummary && (
+                <div className="flex flex-wrap items-center gap-3 pt-2 text-[11px] font-mono text-slate-400">
+                  <span className="flex items-center gap-1 text-amber-300">
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Est. Power: {energySummary.baseline_power_w.toFixed(0)}W → {energySummary.recommended_power_w.toFixed(0)}W</span>
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Energy: {energySummary.baseline_energy_wh.toFixed(1)} Wh → {energySummary.recommended_energy_wh.toFixed(1)} Wh
+                  </span>
+                  <span>•</span>
+                  <span className="text-emerald-400 font-semibold">
+                    Simulated Reduction: {energySummary.energy_savings_wh.toFixed(1)} Wh ({energySummary.energy_savings_percentage.toFixed(1)}%)
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

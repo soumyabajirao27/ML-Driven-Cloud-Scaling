@@ -73,7 +73,7 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({ onNavi
       </div>
 
       {/* Impact Indicators */}
-      <div className="grid grid-cols-3 gap-3 text-xs font-mono pt-2">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono pt-2">
         <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-center">
           <div className="text-[10px] text-slate-400 uppercase">Performance Impact</div>
           <div className={`font-bold mt-0.5 ${item.impact.performance === 'INCREASE' ? 'text-emerald-400' : 'text-sky-400'}`}>
@@ -97,6 +97,35 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({ onNavi
               ? `-${formatINR(Math.abs(item.estimatedCostChange))}/mo`
               : '₹0 (Neutral)'}
           </div>
+        </div>
+
+        <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 text-center">
+          <div className="text-[10px] text-slate-400 uppercase">Simulated Energy Impact</div>
+          <div className={`font-bold mt-0.5 ${item.energyEstimate && item.energyEstimate.baseline_energy_wh > item.energyEstimate.recommended_energy_wh ? 'text-emerald-400' : item.energyEstimate && item.energyEstimate.baseline_energy_wh < item.energyEstimate.recommended_energy_wh ? 'text-amber-400' : 'text-slate-300'}`}>
+            {item.energyEstimate
+              ? item.energyEstimate.baseline_energy_wh > item.energyEstimate.recommended_energy_wh
+                ? `-${(item.energyEstimate.baseline_energy_wh - item.energyEstimate.recommended_energy_wh).toFixed(2)} Wh (${Math.abs(item.energyEstimate.simulated_energy_percentage_change).toFixed(1)}% savings)`
+                : item.energyEstimate.baseline_energy_wh < item.energyEstimate.recommended_energy_wh
+                ? `+${(item.energyEstimate.recommended_energy_wh - item.energyEstimate.baseline_energy_wh).toFixed(2)} Wh (${item.energyEstimate.simulated_energy_percentage_change.toFixed(1)}% increase)`
+                : '0.00 Wh (Neutral)'
+              : 'Not available'}
+          </div>
+        </div>
+      </div>
+
+      {/* Safeguard & Policy Provenance Banner */}
+      <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg bg-slate-900/60 border border-slate-800 text-[11px] font-mono text-slate-400">
+        <div className="flex items-center gap-2">
+          <span className="text-sky-400 font-bold">{item.policyId || 'Policy B (Proactive ML)'}</span>
+          <span>•</span>
+          <span className={item.safeguardStatus?.includes('Cooldown') ? 'text-amber-400 font-semibold' : 'text-slate-300'}>
+            {item.safeguardStatus || 'Normal'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-slate-500">
+          <span>Target Cap: <strong className="text-slate-300">{item.allocatedCapacity ?? 1.0} U</strong></span>
+          <span>•</span>
+          <span className="text-emerald-500/80 font-mono">Simulated Recommendation</span>
         </div>
       </div>
 

@@ -18,6 +18,7 @@ class MetricCreate(ORMModel):
     memory_utilization: float = Field(..., ge=0.0, le=100.0, description="Memory usage percentage")
     storage_utilization: float = Field(default=0.0, ge=0.0, le=100.0, description="Storage usage percentage")
     network_utilization: float = Field(default=0.0, ge=0.0, le=100.0, description="Network usage percentage")
+    source: str = Field(default="mock", max_length=50, description="Workload telemetry source ('mock', 'google_borg')")
 
 
 class MetricResponse(UTCModel):
@@ -30,6 +31,8 @@ class MetricResponse(UTCModel):
     memory_utilization: float
     storage_utilization: float
     network_utilization: float
+    source: str = "mock"
+    resource_name: str | None = None
 
 
 class TrainingResult(ORMModel):
@@ -44,4 +47,16 @@ class TrainingResult(ORMModel):
     message: str = Field(..., description="Human-readable summary")
 
 
-__all__ = ["MetricCreate", "MetricResponse", "TrainingResult"]
+class ModelInfoResponse(ORMModel):
+    """Structured metadata about the active ML model."""
+
+    model_id: str
+    model_type: str
+    model_version: str
+    target: str
+    expected_features_count: int
+    status: str
+    is_available: bool
+
+
+__all__ = ["MetricCreate", "MetricResponse", "TrainingResult", "ModelInfoResponse"]

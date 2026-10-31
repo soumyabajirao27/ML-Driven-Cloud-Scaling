@@ -14,14 +14,19 @@ class MetricRepository(BaseRepository[ResourceMetric]):
         super().__init__(db=db, model=ResourceMetric)
 
     def get_metrics_for_resource(
-        self, resource_id: int, limit: int | None = None
+        self,
+        resource_id: int,
+        limit: int | None = None,
+        source: str | None = None,
     ) -> list[ResourceMetric]:
         """Fetch metrics for a resource ordered by timestamp ascending."""
         statement = (
             select(ResourceMetric)
             .where(ResourceMetric.resource_id == resource_id)
-            .order_by(ResourceMetric.timestamp.asc())
         )
+        if source:
+            statement = statement.where(ResourceMetric.source == source)
+        statement = statement.order_by(ResourceMetric.timestamp.asc())
         if limit is not None:
             statement = statement.limit(limit)
         return list(self.db.execute(statement).scalars().all())

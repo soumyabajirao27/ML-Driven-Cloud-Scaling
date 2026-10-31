@@ -117,7 +117,7 @@ export const DEMO_PREDICTIONS: Record<string, PredictionSummary> = {
     predictedCpu: 97,
     confidence: 0.94,
     horizonHours: 24,
-    modelVersion: 'LSTM v2.4.1',
+    modelVersion: 'RandomForestRegressor (random_forest_v1)',
     status: 'OVERLOADED',
     suggestedAction: 'High resource utilization detected. Increase resource capacity before demand causes performance degradation.',
     metrics: generateMetricHistory(75, 78, 'rising')
@@ -128,7 +128,7 @@ export const DEMO_PREDICTIONS: Record<string, PredictionSummary> = {
     predictedCpu: 48,
     confidence: 0.91,
     horizonHours: 24,
-    modelVersion: 'LSTM v2.4.1',
+    modelVersion: 'RandomForestRegressor (random_forest_v1)',
     status: 'OPTIMAL',
     suggestedAction: 'Resource utilization is currently within the recommended operating range. Maintain current provisioning.',
     metrics: generateMetricHistory(45, 50, 'steady')
@@ -139,7 +139,7 @@ export const DEMO_PREDICTIONS: Record<string, PredictionSummary> = {
     predictedCpu: 12,
     confidence: 0.96,
     horizonHours: 24,
-    modelVersion: 'LSTM v2.4.1',
+    modelVersion: 'RandomForestRegressor (random_forest_v1)',
     status: 'UNDERUTILIZED',
     suggestedAction: 'Resource is operating below the recommended utilization range. Consider right-sizing to reduce unnecessary cloud spend.',
     metrics: generateMetricHistory(10, 10, 'low')
@@ -251,7 +251,7 @@ export const DEMO_EXPLAINABLE_AI: Record<string, ExplainableAIDecision> = {
     ],
     reasoningPath: [
       { step: 1, stage: 'Resource Metrics', label: 'Telemetry Collected', description: 'CPU 92%, Memory 90%, Network 35%', value: 'Sustained peak >85%' },
-      { step: 2, stage: 'ML Demand Prediction', label: 'LSTM Forecast', description: 'Predicted CPU load in 6h is 97%', value: 'Critical Growth Trend' },
+      { step: 2, stage: 'ML Demand Prediction', label: 'ML Forecast', description: 'Predicted CPU load in 6h is 97%', value: 'Critical Growth Trend' },
       { step: 3, stage: 'Status Classification', label: 'Threshold Rule Engine', description: 'Telemetry exceeded 80% threshold for >3h', value: 'OVERLOADED' },
       { step: 4, stage: 'AI Action Recommendation', label: 'FinOps & Auto-scaler', description: 'Generate capacity scale-up recommendation', value: 'Increase Capacity' }
     ]
@@ -269,7 +269,7 @@ export const DEMO_EXPLAINABLE_AI: Record<string, ExplainableAIDecision> = {
     ],
     reasoningPath: [
       { step: 1, stage: 'Resource Metrics', label: 'Telemetry Collected', description: 'CPU 10%, Memory 10%', value: 'Low Activity' },
-      { step: 2, stage: 'ML Demand Prediction', label: 'LSTM Forecast', description: 'Predicted CPU in 24h is 12%', value: 'No Spikes Expected' },
+      { step: 2, stage: 'ML Demand Prediction', label: 'ML Forecast', description: 'Predicted CPU in 24h is 12%', value: 'No Spikes Expected' },
       { step: 3, stage: 'Status Classification', label: 'Threshold Rule Engine', description: 'Telemetry consistently below 20%', value: 'UNDERUTILIZED' },
       { step: 4, stage: 'AI Action Recommendation', label: 'FinOps Optimization', description: 'Propose right-sizing from ₹3,750/mo to ₹1,650/mo', value: 'Right-Size VM' }
     ]
@@ -287,7 +287,7 @@ export const DEMO_EXPLAINABLE_AI: Record<string, ExplainableAIDecision> = {
     ],
     reasoningPath: [
       { step: 1, stage: 'Resource Metrics', label: 'Telemetry Collected', description: 'CPU 45%, Memory 50%', value: 'Target Headroom' },
-      { step: 2, stage: 'ML Demand Prediction', label: 'LSTM Forecast', description: 'Predicted CPU in 24h is 48%', value: 'Stable Range' },
+      { step: 2, stage: 'ML Demand Prediction', label: 'ML Forecast', description: 'Predicted CPU in 24h is 48%', value: 'Stable Range' },
       { step: 3, stage: 'Status Classification', label: 'Threshold Rule Engine', description: 'Utilization within 30%-70% band', value: 'OPTIMAL' },
       { step: 4, stage: 'AI Action Recommendation', label: 'System Supervisor', description: 'Maintain active provisioning parameters', value: 'No Action Needed' }
     ]
@@ -295,18 +295,18 @@ export const DEMO_EXPLAINABLE_AI: Record<string, ExplainableAIDecision> = {
 };
 
 export const DEMO_MODEL_ANALYTICS: ModelAnalyticsData = {
-  modelVersion: 'LSTM v2.4.1',
+  modelVersion: 'RandomForestRegressor (random_forest_v1)',
   activeStatus: 'Active & Healthy',
-  predictionAccuracy: 94.8,
-  mae: 0.032,
-  rmse: 0.048,
-  trainingSamples: 142850,
-  lastTrained: '2026-08-22 (Automated Daily Retrain)',
+  predictionAccuracy: 90.7, // R²: 0.9071 from offline model comparison benchmark
+  mae: 0.0006, // Mean Absolute Error: 0.000615 from Phase 4 benchmark
+  rmse: 0.0019, // Root Mean Squared Error: 0.001899 from Phase 4 benchmark
+  trainingSamples: 65398, // Verified row count in Google Borg temporal dataset
+  lastTrained: 'Offline Phase 4 Benchmark / random_forest_v1',
   pipelineStages: [
     { id: 1, title: 'Historical Metrics', description: 'Stream CPU, memory, storage & network telemetry into time-series store', iconName: 'Database' },
     { id: 2, title: 'Feature Engineering', description: 'Extract sliding window statistics, exponential moving averages & Fourier seasonality', iconName: 'Cpu' },
-    { id: 3, title: 'ML Model', description: 'LSTM Neural Network trained on multi-variate cloud workloads', iconName: 'Brain' },
-    { id: 4, title: 'Demand Prediction', description: 'Project resource utilization with 95% confidence interval bounds', iconName: 'TrendingUp' },
+    { id: 3, title: 'ML Model', description: 'RandomForest model trained on multi-variate cloud workloads', iconName: 'Brain' },
+    { id: 4, title: 'Demand Prediction', description: 'Project next-step resource utilization with estimated deviation bounds', iconName: 'TrendingUp' },
     { id: 5, title: 'AI Optimization', description: 'Compare forecasted workload against SLA constraints and cost boundaries', iconName: 'Sparkles' },
     { id: 6, title: 'Scaling Recommendation', description: 'Deliver actionable, explainable right-sizing or capacity increase plan', iconName: 'CheckCircle2' }
   ]
@@ -336,7 +336,7 @@ export const DEMO_SYSTEM_EVENTS: SystemEvent[] = [
     timestamp: '1 hour ago',
     type: 'PREDICTION',
     title: 'Demand Forecast Updated',
-    description: 'LSTM v2.4.1 predicted 97% peak CPU demand for mock-db-server-1 in next 6h.',
+    description: 'ML model predicted 97% peak CPU demand for mock-db-server-1 in next 6h.',
     severity: 'WARNING',
     resourceId: 'mock-db-server-1'
   },

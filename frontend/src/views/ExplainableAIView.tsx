@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ExplainableAIDecision } from '../types/cloudscaler';
+import { CloudResource, ExplainableAIDecision } from '../types/cloudscaler';
+import { resourceService } from '../services/resourceService';
 import { predictionService } from '../services/predictionService';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { SkeletonLoader } from '../components/common/SkeletonLoader';
@@ -7,21 +8,31 @@ import { HelpCircle, Brain, ArrowRight, ShieldAlert, Sparkles, CheckCircle2 } fr
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from 'recharts';
 
 export const ExplainableAIView: React.FC = () => {
-  const [selectedResourceId, setSelectedResourceId] = useState<string>('mock-db-server-1');
+  const [resources, setResources] = useState<CloudResource[]>([]);
+  const [selectedResourceId, setSelectedResourceId] = useState<string>('');
   const [decision, setDecision] = useState<ExplainableAIDecision | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
+    const init = async () => {
       try {
-        const res = await predictionService.getExplainableAI(selectedResourceId);
-        setDecision(res);
+        const resList = await resourceService.getResources();
+        setResources(resList);
+        if (resList.length > 0) {
+          const targetId = selectedResourceId && resList.some(r => r.id === selectedResourceId)
+            ? selectedResourceId
+            : resList[0].id;
+          if (targetId !== selectedResourceId) {
+            setSelectedResourceId(targetId);
+          }
+          const res = await predictionService.getExplainableAI(targetId);
+          setDecision(res);
+        }
       } finally {
         setLoading(false);
       }
     };
-    load();
+    init();
   }, [selectedResourceId]);
 
   if (loading || !decision) return <SkeletonLoader type="card" count={3} />;
@@ -44,20 +55,33 @@ export const ExplainableAIView: React.FC = () => {
         </div>
 
         {/* Resource selector */}
-        <div className="flex items-center gap-2 bg-[#0f172a] p-1.5 rounded-xl border border-slate-800 font-mono text-xs">
-          {['mock-db-server-1', 'mock-app-vm-1', 'mock-web-server-1'].map((id) => (
+        <div className="flex items-center gap-2 bg-[#0f172a] p-1.5 rounded-xl border border-slate-800 font-mono text-xs max-w-full overflow-x-auto">
+          {resources.slice(0, 8).map((r) => (
             <button
-              key={id}
-              onClick={() => setSelectedResourceId(id)}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                selectedResourceId === id
+              key={r.id}
+              onClick={() => setSelectedResourceId(r.id)}
+              className={`px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
+                selectedResourceId === r.id
                   ? 'bg-sky-500 text-slate-950 font-bold shadow-md shadow-sky-500/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
               }`}
             >
-              {id}
+              {r.name || r.id}
             </button>
           ))}
+          {resources.length > 8 && (
+            <select
+              value={selectedResourceId}
+              onChange={(e) => setSelectedResourceId(e.target.value)}
+              className="bg-slate-900 border border-slate-800 text-slate-300 rounded px-2 py-1 text-xs focus:outline-none"
+            >
+              {resources.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name || r.id} ({r.provider})
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 

@@ -1,0 +1,43 @@
+{
+  "phase": "Phase 4 \u2014 Model Comparison and Selection",
+  "models": {
+    "Random Forest": {
+      "MAE": 0.000615,
+      "RMSE": 0.001899,
+      "R2": 0.9071,
+      "train_time_s": 2.46,
+      "infer_time_s": 0.192,
+      "infer_ms_per_sample": 0.0293
+    },
+    "XGBoost": {
+      "MAE": 0.000877,
+      "RMSE": 0.00229,
+      "R2": 0.865,
+      "train_time_s": 3.12,
+      "infer_time_s": 0.075,
+      "infer_ms_per_sample": 0.0115
+    },
+    "LSTM": {
+      "MAE": 0.000417,
+      "RMSE": 0.000547,
+      "R2": 0.9838,
+      "train_time_s": 35.0,
+      "infer_time_s": 0.37,
+      "infer_ms_per_sample": 0.2369
+    }
+  },
+  "relative_improvements": {
+    "LSTM_vs_RF": {
+      "MAE_reduction_pct": 32.2,
+      "RMSE_reduction_pct": 71.2,
+      "R2_increase": 0.0767
+    },
+    "LSTM_vs_XGB": {
+      "MAE_reduction_pct": 52.45,
+      "RMSE_reduction_pct": 76.11,
+      "R2_increase": 0.1188
+    }
+  },
+  "selected_model": "LSTM",
+  "fairness_assessment": "Informative comparison at dataset level; evaluated on distinct datasets derived from same Borg workload trace source."
+}

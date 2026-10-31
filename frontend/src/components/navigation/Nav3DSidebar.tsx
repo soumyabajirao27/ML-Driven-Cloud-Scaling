@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   Server,
@@ -17,6 +17,8 @@ import {
   Layers
 } from 'lucide-react';
 import { NavItem } from '../layout/Sidebar';
+import { predictionService } from '../../services/predictionService';
+import { ModelInfo } from '../../types/cloudscaler';
 
 interface Nav3DSidebarProps {
   activeNav: NavItem;
@@ -31,6 +33,16 @@ export const Nav3DSidebar: React.FC<Nav3DSidebarProps> = ({
   isOpenMobile,
   setIsOpenMobile
 }) => {
+  const [modelInfo, setModelInfo] = useState<ModelInfo | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    predictionService.getModelInfo().then((info) => {
+      if (isMounted) setModelInfo(info);
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
+
   const mainNavItems: { id: NavItem; label: string; icon: React.ElementType; badge?: string }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'resources', label: 'Resources', icon: Server, badge: '3' },
@@ -166,18 +178,18 @@ export const Nav3DSidebar: React.FC<Nav3DSidebarProps> = ({
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-mono uppercase text-slate-400 font-medium">Model Status</span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 font-semibold">
-                LSTM
+                {modelInfo ? 'RandomForest' : 'AI Engine'}
               </span>
             </div>
             <div className="text-xs font-semibold text-slate-200 font-mono">
-              LSTM v2.4.1
+              {modelInfo ? `${modelInfo.model_type} (${modelInfo.model_id})` : 'Model Status Checking...'}
             </div>
             <div className="flex items-center gap-2 text-[11px] text-emerald-400">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              <span className="font-mono text-[11px]">Active & Healthy</span>
+              <span className="font-mono text-[11px]">{modelInfo?.status || 'Active & Ready'}</span>
             </div>
           </div>
         </div>

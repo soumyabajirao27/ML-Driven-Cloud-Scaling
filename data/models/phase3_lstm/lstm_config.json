@@ -1,0 +1,45 @@
+{
+  "architecture": "Stacked LSTM",
+  "layers": [
+    {
+      "type": "LSTM",
+      "units": 64,
+      "return_sequences": true
+    },
+    {
+      "type": "Dropout",
+      "rate": 0.2
+    },
+    {
+      "type": "LSTM",
+      "units": 32,
+      "return_sequences": false
+    },
+    {
+      "type": "Dropout",
+      "rate": 0.2
+    },
+    {
+      "type": "Dense",
+      "units": 16,
+      "activation": "relu"
+    },
+    {
+      "type": "Dense",
+      "units": 1,
+      "activation": "linear"
+    }
+  ],
+  "optimizer": "Adam",
+  "learning_rate": 0.001,
+  "loss": "MSE",
+  "metrics": [
+    "MAE"
+  ],
+  "batch_size": 64,
+  "max_epochs": 100,
+  "early_stopping_patience": 10,
+  "early_stopping_monitor": "val_loss",
+  "restore_best_weights": true,
+  "seed": 42
+}

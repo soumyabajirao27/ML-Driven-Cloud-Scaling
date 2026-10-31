@@ -82,4 +82,51 @@ class SyncResourceResponse(BaseResponse[dict]):
     }
 
 
-__all__ = ["ResourceBase", "ResourceCreate", "ResourceUpdate", "ResourceResponse", "SyncResourceResponse"]
+class BorgReplayResponse(BaseResponse[dict]):
+    """Response payload for Google Borg workload replay / ingestion."""
+
+    success: bool = True
+    message: str = "Borg workload replayed successfully"
+    data: dict = {
+        "dataset_source": "google_borg:borg_temporal_pairs.csv",
+        "rows_selected": 0,
+        "rows_imported": 0,
+        "rows_skipped": 0,
+        "duplicates_ignored": 0,
+        "timestamp_range": {"start": None, "end": None},
+        "resources_created": 0,
+        "resources_updated": 0,
+        "success": True,
+        "message": "",
+    }
+
+
+class BorgDatasetSummaryResponse(BaseResponse[dict]):
+    """Response payload for Google Borg dataset overview and live telemetry stats."""
+
+    success: bool = True
+    message: str = "Borg dataset summary retrieved successfully"
+    data: dict = {
+        "dataset_name": "Google Borg Workload Trace (Cluster Workloads)",
+        "original_file": "data/temporal/borg_temporal_pairs.csv",
+        "original_row_count": 65398,
+        "original_column_count": 26,
+        "imported_metric_count": 0,
+        "imported_resource_count": 0,
+        "mock_metric_count": 0,
+        "mock_resource_count": 0,
+        "earliest_timestamp": None,
+        "latest_timestamp": None,
+        "telemetry_source": "google_borg",
+    }
+
+
+__all__ = [
+    "ResourceBase",
+    "ResourceCreate",
+    "ResourceUpdate",
+    "ResourceResponse",
+    "SyncResourceResponse",
+    "BorgReplayResponse",
+    "BorgDatasetSummaryResponse",
+]

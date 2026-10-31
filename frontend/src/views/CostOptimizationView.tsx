@@ -51,11 +51,18 @@ export const CostOptimizationView: React.FC<CostOptimizationViewProps> = ({ onNa
     Cost: item.currentCost,
   }));
 
-  const pieData = [
-    { name: 'Mock Cloud (us-east-1)', value: 35000 },
-    { name: 'Mock Cloud (us-central1)', value: 3750 }
-  ];
-  const COLORS = ['#38bdf8', '#818cf8'];
+  // Group dynamic pie distribution by provider / region from actual connected items
+  const providerCostMap = data.items.reduce((acc, item) => {
+    const key = item.resourceName.startsWith('borg-') ? 'Google Borg (historical replay)' : 'Mock Provider (simulated)';
+    acc[key] = (acc[key] || 0) + item.currentCost;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const pieData = Object.entries(providerCostMap).map(([name, value]) => ({
+    name,
+    value: Math.max(value, 1)
+  }));
+  const COLORS = ['#38bdf8', '#818cf8', '#34d399', '#f472b6'];
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -77,7 +84,7 @@ export const CostOptimizationView: React.FC<CostOptimizationViewProps> = ({ onNa
           <div className="text-3xl font-bold font-mono text-slate-100">
             <AnimatedCounter target={data.totals.totalMonthlyCost} isCurrency={true} />
           </div>
-          <div className="text-[11px] text-slate-500 font-mono">3 Connected Resources</div>
+          <div className="text-[11px] text-slate-500 font-mono">{data.totals.totalResources} Connected Workloads</div>
         </div>
 
         <div className="p-5 rounded-xl bg-[#0f172a] border border-slate-800 space-y-2 hover:border-slate-700 transition-all">

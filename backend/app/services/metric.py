@@ -40,6 +40,7 @@ class MetricService:
             memory_utilization=metric_data.memory_utilization,
             storage_utilization=metric_data.storage_utilization,
             network_utilization=metric_data.network_utilization,
+            source=metric_data.source or "mock",
         )
         return self.metric_repository.create(metric)
 
@@ -47,11 +48,13 @@ class MetricService:
         self,
         resource_id: int,
         limit: int | None = None,
+        source: str | None = None,
     ) -> list[ResourceMetric]:
         """Return chronological metric samples for a resource."""
         return self.metric_repository.get_metrics_for_resource(
             resource_id=resource_id,
             limit=limit,
+            source=source,
         )
 
     def get_metrics_for_analysis(

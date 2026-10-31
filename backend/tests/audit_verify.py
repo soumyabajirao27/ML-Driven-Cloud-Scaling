@@ -1,4 +1,4 @@
-z   """Read-only verification: extract external imports from backend/app,
+"""Read-only verification: extract external imports from backend/app,
 cross-check against requirements.txt, and confirm importability from venv."""
 import ast
 import os
@@ -63,7 +63,7 @@ for label, mod in check_modules.items():
         print(f"ERROR {label} ({mod}): {type(e).__name__}: {e}")
 
 print("\n=== requirements.txt cross-check ===")
-req_path = os.path.join(os.path.dirname(__file__), "requirements.txt")
+req_path = os.path.join(BACKEND_DIR, "requirements.txt")
 # Map of import-name -> pip-name for the packages we care about.
 import_to_pip = {
     "fastapi": "fastapi",

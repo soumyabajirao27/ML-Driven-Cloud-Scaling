@@ -22,7 +22,7 @@ import {
 
 export const PredictionsView: React.FC = () => {
   const [resources, setResources] = useState<CloudResource[]>([]);
-  const [selectedResourceId, setSelectedResourceId] = useState<string>('mock-db-server-1');
+  const [selectedResourceId, setSelectedResourceId] = useState<string>('');
   const [prediction, setPrediction] = useState<PredictionSummary | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<boolean>(false);
@@ -33,7 +33,15 @@ export const PredictionsView: React.FC = () => {
         const res = await resourceService.getResources();
         setResources(res);
         if (res.length > 0) {
-          const pred = await predictionService.getPredictionForResource(selectedResourceId);
+          const targetId = selectedResourceId && res.some(r => r.id === selectedResourceId)
+            ? selectedResourceId
+            : res[0].id;
+          
+          if (targetId !== selectedResourceId) {
+            setSelectedResourceId(targetId);
+          }
+
+          const pred = await predictionService.getPredictionForResource(targetId);
           setPrediction(pred);
         }
       } catch {
@@ -61,13 +69,13 @@ export const PredictionsView: React.FC = () => {
           </p>
         </div>
 
-        {/* Resource Selector Buttons */}
-        <div className="flex items-center gap-2 bg-[#0f172a] p-1.5 rounded-xl border border-slate-800">
-          {resources.map((r) => (
+        {/* Resource Selector Buttons & Dropdown */}
+        <div className="flex items-center gap-2 bg-[#0f172a] p-1.5 rounded-xl border border-slate-800 font-mono text-xs max-w-full overflow-x-auto">
+          {resources.slice(0, 8).map((r) => (
             <button
               key={r.id}
               onClick={() => setSelectedResourceId(r.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all ${
+              className={`px-3 py-1.5 rounded-lg whitespace-nowrap font-medium transition-all ${
                 selectedResourceId === r.id
                   ? 'bg-sky-500 text-slate-950 font-bold shadow-md shadow-sky-500/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
@@ -76,6 +84,19 @@ export const PredictionsView: React.FC = () => {
               {r.name}
             </button>
           ))}
+          {resources.length > 8 && (
+            <select
+              value={selectedResourceId}
+              onChange={(e) => setSelectedResourceId(e.target.value)}
+              className="bg-slate-900 border border-slate-800 text-slate-300 rounded px-2.5 py-1 text-xs focus:outline-none"
+            >
+              {resources.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name} ({r.provider})
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -91,12 +112,13 @@ export const PredictionsView: React.FC = () => {
         </div>
 
         <div className="p-4 rounded-xl bg-[#0f172a] border border-slate-800 space-y-1">
-          <span className="text-[11px] font-mono text-slate-400 uppercase">Predicted CPU (+6h)</span>
+          <span className="text-[11px] font-mono text-slate-400 uppercase">Predicted CPU (+1h)</span>
           <div className={`text-2xl font-bold font-mono ${prediction.predictedCpu > 80 ? 'text-red-400' : 'text-sky-400'}`}>
             <AnimatedCounter target={prediction.predictedCpu} suffix="%" />
           </div>
           <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-            <TrendingUp className="w-3 h-3 text-sky-400" /> LSTM Forecast
+            <TrendingUp className="w-3 h-3 text-sky-400" />
+            {prediction.provenance?.is_fallback ? 'Baseline Heuristic' : `${prediction.provenance?.model_type || 'ML'} Forecast`}
           </div>
         </div>
 
@@ -106,22 +128,27 @@ export const PredictionsView: React.FC = () => {
             <AnimatedCounter target={Math.round(prediction.confidence * 100)} suffix="%" />
           </div>
           <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-            <ShieldCheck className="w-3 h-3 text-emerald-400" /> 95% Confidence Band
+            <ShieldCheck className="w-3 h-3 text-emerald-400" />
+            {prediction.provenance?.sufficient_history ? 'Evaluated Signal' : 'Limited Sample History'}
           </div>
         </div>
 
         <div className="p-4 rounded-xl bg-[#0f172a] border border-slate-800 space-y-1">
           <span className="text-[11px] font-mono text-slate-400 uppercase">Forecast Horizon</span>
-          <div className="text-2xl font-bold font-mono text-indigo-400">{prediction.horizonHours} Hours</div>
+          <div className="text-2xl font-bold font-mono text-indigo-400">{prediction.horizonHours} Step Ahead</div>
           <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
-            <Clock className="w-3 h-3 text-indigo-400" /> Sliding Window
+            <Clock className="w-3 h-3 text-indigo-400" /> Next Interval Target
           </div>
         </div>
 
         <div className="p-4 rounded-xl bg-[#0f172a] border border-slate-800 space-y-1">
           <span className="text-[11px] font-mono text-slate-400 uppercase">ML Model Engine</span>
-          <div className="text-base font-bold font-mono text-slate-200 mt-1">{prediction.modelVersion}</div>
-          <div className="text-[10px] text-emerald-400 font-mono">● Active & Healthy</div>
+          <div className="text-sm font-bold font-mono text-slate-200 mt-1 truncate" title={prediction.modelVersion}>
+            {prediction.modelVersion}
+          </div>
+          <div className={`text-[10px] font-mono ${prediction.provenance?.is_fallback ? 'text-amber-400' : 'text-emerald-400'}`}>
+            {prediction.provenance?.is_fallback ? '⚠ Baseline Fallback Active' : '● Verified Live Model'}
+          </div>
         </div>
       </div>
 
@@ -134,7 +161,7 @@ export const PredictionsView: React.FC = () => {
               {currentRes && <StatusBadge status={currentRes.status} size="sm" />}
             </div>
             <p className="text-xs text-slate-400 mt-0.5">
-              Historical CPU telemetry vs. LSTM predicted demand curve with upper and lower error bounds.
+              Historical CPU telemetry vs. {prediction.modelVersion} predicted demand curve with estimated deviation bounds.
             </p>
           </div>
         </div>

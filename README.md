@@ -111,7 +111,7 @@ CloudScale AI introduces a coordinated predictive and reactive optimization pipe
 ### Component Architecture
 
 ```mermaid
-graph TD
+flowchart TD
     subgraph Frontend ["Client Presentation Tier (React 18 + Vite + TypeScript)"]
         UI_Dash["Dashboard & KPIs"]
         UI_Borg["Google Borg Telemetry Explorer"]
@@ -139,7 +139,7 @@ graph TD
     end
 
     subgraph Storage ["Data & Artifact Tier"]
-        DB[(PostgreSQL 14+ Database)]
+        DB[("PostgreSQL 14+ Database")]
         JoblibFile[("Model Artifact: demand_predictor.joblib")]
         CSVTrace[("Google Borg Raw CSV: 65,398 rows")]
         
@@ -148,8 +148,8 @@ graph TD
         Res_Router -.-> CSVTrace
     end
 
-    API_Client <==>|HTTP / REST JSON (JWT Auth)| Res_Router
-    API_Client <==>|HTTP / REST JSON| Auth_Router
+    API_Client <-->|"HTTP / REST JSON (JWT Auth)"| Res_Router
+    API_Client <-->|"HTTP / REST JSON"| Auth_Router
 ```
 
 ### Telemetry-to-Recommendation Sequence Flow
